@@ -4,7 +4,8 @@ const cors = require('cors');
 require('dotenv').config();
 const blogsRoute = require('./routes/blogs');
 const jobRoutes = require('./routes/jobRoutes');
-
+const conferenceRoutes = require('./routes/conference');
+const reportRoutes = require("./routes/reports");
 const eventRoutes = require('./routes/events');
 
 const app = express();
@@ -18,6 +19,8 @@ app.use("/api", require("./routes/contact"))
 app.use('/api/events', eventRoutes);
 app.use("/api/blogs", blogsRoute);
 app.use("/api", jobRoutes)
+app.use("/api/conference", conferenceRoutes);
+app.use("/", reportRoutes);
 const path = require('path');
 
 // Serve uploaded images
