@@ -1,42 +1,47 @@
-const nodemailer = require("nodemailer")
-const jobs = []
+const nodemailer = require("nodemailer");
+const Job = require("../models/Job");
 
-exports.getJobs = (req, res) => {
-  const { type } = req.query
-  if (!type) return res.json(jobs)
-  const filtered = jobs.filter(job => job.type === type)
-  res.json(filtered)
-}
-
-
-exports.addJob = (req, res) => {
-  const { title, description, type } = req.body
-  if (!title || !description || !type) {
-    return res.status(400).json({ error: "All fields are required" })
+exports.getJobs = async (req, res) => {
+  try {
+    const { type } = req.query;
+    const jobs = type ? await Job.find({ type }) : await Job.find();
+    res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch jobs" });
   }
-  const job = { _id: Date.now().toString(), title, description, type }
-  jobs.push(job)
-  res.json(job)
-}
+};
 
+exports.addJob = async (req, res) => {
+  try {
+    const { title, description, type } = req.body;
+    if (!title || !description || !type) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
 
-
-exports.deleteJob = (req, res) => {
-  const { id } = req.params
-  const index = jobs.findIndex(j => j._id === id)
-  if (index > -1) {
-    jobs.splice(index, 1)
-    return res.json({ success: true })
+    const job = await Job.create({ title, description, type });
+    res.json(job);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to add job" });
   }
-  res.status(404).json({ error: "Job not found" })
-}
+};
+
+exports.deleteJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = await Job.findByIdAndDelete(id);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete job" });
+  }
+};
 
 exports.applyToJob = async (req, res) => {
-  const { name, email, experience, ctc, jobId } = req.body
-  const resume = req.file
+  const { name, email, experience, ctc, jobId } = req.body;
+  const resume = req.file;
 
   if (!name || !email || !resume || !jobId) {
-    return res.status(400).json({ error: "Missing required fields" })
+    return res.status(400).json({ error: "Missing required fields" });
   }
 
   const transporter = nodemailer.createTransport({
@@ -45,13 +50,16 @@ exports.applyToJob = async (req, res) => {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
-  })
+  });
 
   try {
+    const job = await Job.findById(jobId);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
     await transporter.sendMail({
       from: `"SR Asia Careers" <${process.env.MAIL_USER}>`,
       to: "hr@sr-asia.org",
-      subject: `New Application for Job ID: ${jobId}`,
+      subject: `New Application for "${job.title}"`,
       text: `Name: ${name}\nEmail: ${email}\nExperience: ${experience}\nCTC: ${ctc}`,
       attachments: [
         {
@@ -59,12 +67,11 @@ exports.applyToJob = async (req, res) => {
           content: resume.buffer,
         },
       ],
-    })
+    });
 
-    res.json({ success: true })
+    res.json({ success: true });
   } catch (error) {
-    console.error("Email sending failed:", error)
-    res.status(500).json({ error: "Failed to send email" })
+    console.error("Email sending failed:", error);
+    res.status(500).json({ error: "Failed to send application" });
   }
-}
-
+};
