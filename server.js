@@ -10,8 +10,23 @@ const eventRoutes = require('./routes/events');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:3000",        // For local development
+  "https://sr-asia.org",          // ✅ Your Vercel production domain
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST"],
+  credentials: true,
+}));
+
 app.use(express.json());
 
 // Routes
