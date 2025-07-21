@@ -7,6 +7,7 @@ const jobRoutes = require('./routes/jobRoutes');
 const conferenceRoutes = require('./routes/conference');
 const reportRoutes = require("./routes/reports");
 const eventRoutes = require('./routes/events');
+const volunteerRoutes = require('./routes/volunteer');
 
 const app = express();
 
@@ -37,7 +38,8 @@ app.use("/api", jobRoutes)
 app.use("/api/conference", conferenceRoutes);
 app.use("/", reportRoutes);
 const path = require('path');
-
+app.use("/api/volunteer", volunteerRoutes);
+app.use("/api/empanelment", require("./routes/empanelment"));
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

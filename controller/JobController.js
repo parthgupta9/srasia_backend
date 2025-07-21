@@ -58,7 +58,7 @@ exports.applyToJob = async (req, res) => {
 
     await transporter.sendMail({
       from: `"SR Asia Careers" <${process.env.MAIL_USER}>`,
-      to: "hr@sr-asia.org",
+      to: "career.sr@gmail.com ",
       subject: `New Application for "${job.title}"`,
       text: `Name: ${name}\nEmail: ${email}\nExperience: ${experience}\nCTC: ${ctc}`,
       attachments: [
