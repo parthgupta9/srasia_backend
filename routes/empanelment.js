@@ -21,7 +21,7 @@ router.post("/send", async (req, res) => {
 
   const mailOptions = {
     from: process.env.MAIL_USER,
-    to: "parth615gupta@gmail.com",
+    to: "career.srasia@gmail.com",
     subject: "New Empanelment Submission",
     html: `
       <h3>New Empanelment Submission</h3>
