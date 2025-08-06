@@ -7,7 +7,7 @@ const path = require("path");
 const router = express.Router();
 
 // 📌 Submit Volunteer
-router.post("/volunteers/send", async (req, res) => {
+router.post("/send", async (req, res) => {
   const { name, phone } = req.body;
 
   if (!name || !phone) {
