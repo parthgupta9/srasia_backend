@@ -1,10 +1,9 @@
 const nodemailer = require("nodemailer");
-const Job = require("../models/Job");
-
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
 
+// ===== GET JOBS =====
 exports.getJobs = async (req, res) => {
   try {
     const { type } = req.query;
@@ -15,6 +14,7 @@ exports.getJobs = async (req, res) => {
   }
 };
 
+// ===== ADD JOB =====
 exports.addJob = async (req, res) => {
   try {
     const { title, description, type } = req.body;
@@ -29,6 +29,7 @@ exports.addJob = async (req, res) => {
   }
 };
 
+// ===== DELETE JOB =====
 exports.deleteJob = async (req, res) => {
   try {
     const { id } = req.params;
@@ -39,6 +40,8 @@ exports.deleteJob = async (req, res) => {
     res.status(500).json({ error: "Failed to delete job" });
   }
 };
+
+// ===== APPLY TO JOB =====
 exports.applyToJob = async (req, res) => {
   const {
     name,
@@ -49,7 +52,7 @@ exports.applyToJob = async (req, res) => {
     highestQualification,
     experience,
     expectedCtc,
-    jobTitle, // Now directly passed from frontend
+    jobTitle, // Directly passed from frontend
   } = req.body;
 
   const resume = req.file;
@@ -139,4 +142,20 @@ exports.applyToJob = async (req, res) => {
     console.error("Application save/send failed:", error);
     res.status(500).json({ error: "Failed to send or save application" });
   }
+};
+
+// ===== DOWNLOAD EXCEL FILE =====
+exports.downloadApplications = (req, res) => {
+  const filePath = path.join(__dirname, "../job_applications.xlsx");
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send("No applications file found.");
+  }
+
+  res.download(filePath, "job_applications.xlsx", (err) => {
+    if (err) {
+      console.error("Error downloading file:", err);
+      res.status(500).send("Error downloading file");
+    }
+  });
 };
