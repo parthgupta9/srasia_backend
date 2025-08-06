@@ -6,7 +6,8 @@ const path = require("path");
 
 const router = express.Router();
 
-router.post("/send", async (req, res) => {
+// 📌 Submit Volunteer
+router.post("/volunteers/send", async (req, res) => {
   const { name, phone } = req.body;
 
   if (!name || !phone) {
@@ -41,11 +42,9 @@ router.post("/send", async (req, res) => {
     let workbook, worksheet;
 
     if (fs.existsSync(filePath)) {
-      // Read existing file
       workbook = XLSX.readFile(filePath);
       worksheet = workbook.Sheets["Volunteers"];
     } else {
-      // Create new workbook and header
       workbook = XLSX.utils.book_new();
       worksheet = XLSX.utils.aoa_to_sheet([
         ["Name", "Phone", "Date"],
@@ -53,11 +52,9 @@ router.post("/send", async (req, res) => {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Volunteers");
     }
 
-    // Add new row
     const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
     data.push([name, phone, new Date().toLocaleString()]);
 
-    // Save back to file
     worksheet = XLSX.utils.aoa_to_sheet(data);
     workbook.Sheets["Volunteers"] = worksheet;
     XLSX.writeFile(workbook, filePath);
@@ -66,6 +63,17 @@ router.post("/send", async (req, res) => {
   } catch (error) {
     console.error("Volunteer send/save error:", error);
     res.status(500).json({ error: "Failed to send/save volunteer details" });
+  }
+});
+
+// 📌 Download Volunteers Excel
+router.get("/volunteers/download", (req, res) => {
+  const filePath = path.join(__dirname, "../volunteers.xlsx");
+
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, "volunteers.xlsx");
+  } else {
+    res.status(404).json({ error: "No volunteers file found" });
   }
 });
 

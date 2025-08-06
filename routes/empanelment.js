@@ -6,7 +6,8 @@ const path = require("path");
 
 const router = express.Router();
 
-router.post("/send", async (req, res) => {
+// 📌 Empanelment submission
+router.post("/empanelments/send", async (req, res) => {
   const { name, email, phone, category } = req.body;
 
   if (!name || !phone || !category) {
@@ -36,19 +37,17 @@ router.post("/send", async (req, res) => {
   };
 
   try {
-    // ===== Send Email =====
+    // Send Email
     await transporter.sendMail(mailOptions);
 
-    // ===== Save to Excel =====
+    // Save to Excel
     const filePath = path.join(__dirname, "../empanelments.xlsx");
     let workbook, worksheet;
 
     if (fs.existsSync(filePath)) {
-      // Read existing file
       workbook = XLSX.readFile(filePath);
       worksheet = workbook.Sheets["Empanelments"];
     } else {
-      // Create new workbook & header
       workbook = XLSX.utils.book_new();
       worksheet = XLSX.utils.aoa_to_sheet([
         ["Name", "Email", "Phone", "Category", "Date"],
@@ -56,7 +55,6 @@ router.post("/send", async (req, res) => {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Empanelments");
     }
 
-    // Add new row
     const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
     data.push([
       name,
@@ -66,7 +64,6 @@ router.post("/send", async (req, res) => {
       new Date().toLocaleString(),
     ]);
 
-    // Save back to file
     worksheet = XLSX.utils.aoa_to_sheet(data);
     workbook.Sheets["Empanelments"] = worksheet;
     XLSX.writeFile(workbook, filePath);
@@ -75,6 +72,17 @@ router.post("/send", async (req, res) => {
   } catch (error) {
     console.error("Empanelment send/save error:", error);
     res.status(500).json({ error: "Failed to send/save empanelment" });
+  }
+});
+
+// 📌 Download Empanelments Excel
+router.get("/empanelments/download", (req, res) => {
+  const filePath = path.join(__dirname, "../empanelments.xlsx");
+
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, "empanelments.xlsx");
+  } else {
+    res.status(404).json({ error: "No empanelments file found" });
   }
 });
 
