@@ -1,6 +1,10 @@
 const nodemailer = require("nodemailer");
 const Job = require("../models/Job");
 
+const XLSX = require("xlsx");
+const fs = require("fs");
+const path = require("path");
+
 exports.getJobs = async (req, res) => {
   try {
     const { type } = req.query;
@@ -35,12 +39,22 @@ exports.deleteJob = async (req, res) => {
     res.status(500).json({ error: "Failed to delete job" });
   }
 };
-
 exports.applyToJob = async (req, res) => {
-  const { name, email, experience, ctc, jobId } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    previousOrganization,
+    institutionName,
+    highestQualification,
+    experience,
+    expectedCtc,
+    jobTitle, // Now directly passed from frontend
+  } = req.body;
+
   const resume = req.file;
 
-  if (!name || !email || !resume || !jobId) {
+  if (!name || !email || !resume || !jobTitle) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
@@ -53,14 +67,21 @@ exports.applyToJob = async (req, res) => {
   });
 
   try {
-    const job = await Job.findById(jobId);
-    if (!job) return res.status(404).json({ error: "Job not found" });
-
+    // ===== Send Email =====
     await transporter.sendMail({
       from: `"SR Asia Careers" <${process.env.MAIL_USER}>`,
-      to: "career.srasia@gmail.com ",
-      subject: `New Application for "${job.title}"`,
-      text: `Name: ${name}\nEmail: ${email}\nExperience: ${experience}\nCTC: ${ctc}`,
+      to: "career.srasia@gmail.com",
+      subject: `New Application for "${jobTitle}"`,
+      text: `
+        Name: ${name}
+        Email: ${email}
+        Phone: ${phone}
+        Previous Organization: ${previousOrganization}
+        Institution Name: ${institutionName}
+        Highest Qualification: ${highestQualification}
+        Experience: ${experience}
+        Expected CTC: ${expectedCtc}
+      `,
       attachments: [
         {
           filename: resume.originalname,
@@ -69,9 +90,53 @@ exports.applyToJob = async (req, res) => {
       ],
     });
 
+    // ===== Save to Excel =====
+    const filePath = path.join(__dirname, "../job_applications.xlsx");
+    let workbook, worksheet;
+
+    if (fs.existsSync(filePath)) {
+      workbook = XLSX.readFile(filePath);
+      worksheet = workbook.Sheets["Applications"];
+    } else {
+      workbook = XLSX.utils.book_new();
+      worksheet = XLSX.utils.aoa_to_sheet([
+        [
+          "Name",
+          "Email",
+          "Phone",
+          "Previous Organization",
+          "Institution Name",
+          "Highest Qualification",
+          "Experience",
+          "Expected CTC",
+          "Job Title",
+          "Date",
+        ],
+      ]);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Applications");
+    }
+
+    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    data.push([
+      name,
+      email,
+      phone,
+      previousOrganization,
+      institutionName,
+      highestQualification,
+      experience,
+      expectedCtc,
+      jobTitle,
+      new Date().toLocaleString(),
+    ]);
+
+    worksheet = XLSX.utils.aoa_to_sheet(data);
+    workbook.Sheets["Applications"] = worksheet;
+    XLSX.writeFile(workbook, filePath);
+
     res.json({ success: true });
   } catch (error) {
-    console.error("Email sending failed:", error);
-    res.status(500).json({ error: "Failed to send application" });
+    console.error("Application save/send failed:", error);
+    res.status(500).json({ error: "Failed to send or save application" });
   }
 };

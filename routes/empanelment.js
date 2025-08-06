@@ -1,5 +1,8 @@
 const express = require("express");
 const nodemailer = require("nodemailer");
+const XLSX = require("xlsx");
+const fs = require("fs");
+const path = require("path");
 
 const router = express.Router();
 
@@ -10,7 +13,7 @@ router.post("/send", async (req, res) => {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  // Create transporter
+  // ====== Email Setup ======
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -33,11 +36,45 @@ router.post("/send", async (req, res) => {
   };
 
   try {
+    // ===== Send Email =====
     await transporter.sendMail(mailOptions);
-    res.status(200).json({ message: "Empanelment email sent successfully!" });
+
+    // ===== Save to Excel =====
+    const filePath = path.join(__dirname, "../empanelments.xlsx");
+    let workbook, worksheet;
+
+    if (fs.existsSync(filePath)) {
+      // Read existing file
+      workbook = XLSX.readFile(filePath);
+      worksheet = workbook.Sheets["Empanelments"];
+    } else {
+      // Create new workbook & header
+      workbook = XLSX.utils.book_new();
+      worksheet = XLSX.utils.aoa_to_sheet([
+        ["Name", "Email", "Phone", "Category", "Date"],
+      ]);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Empanelments");
+    }
+
+    // Add new row
+    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    data.push([
+      name,
+      email || "Not Provided",
+      phone,
+      category,
+      new Date().toLocaleString(),
+    ]);
+
+    // Save back to file
+    worksheet = XLSX.utils.aoa_to_sheet(data);
+    workbook.Sheets["Empanelments"] = worksheet;
+    XLSX.writeFile(workbook, filePath);
+
+    res.status(200).json({ message: "Empanelment saved & email sent!" });
   } catch (error) {
-    console.error("Empanelment email send error:", error);
-    res.status(500).json({ error: "Failed to send empanelment email" });
+    console.error("Empanelment send/save error:", error);
+    res.status(500).json({ error: "Failed to send/save empanelment" });
   }
 });
 
