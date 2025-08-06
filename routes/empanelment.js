@@ -7,7 +7,7 @@ const path = require("path");
 const router = express.Router();
 
 // 📌 Empanelment submission
-router.post("/empanelments/send", async (req, res) => {
+router.post("/send", async (req, res) => {
   const { name, email, phone, category } = req.body;
 
   if (!name || !phone || !category) {
