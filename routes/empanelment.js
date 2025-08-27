@@ -8,11 +8,32 @@ const router = express.Router();
 
 // 📌 Empanelment submission
 router.post("/send", async (req, res) => {
-  const { name, email, phone, category } = req.body;
+  const {
+    surname,
+    firstname,
+    phone,
+    email,
+    gender,
+    dob,
+    qualification,
+    specialization,
+    certification,
+    workmode,
+    designation,
+    employer,
+    experience,
+    noExpAreas,
+    workLocation,
+    residence,
+    ctc,
+    category,
+  } = req.body;
 
-  if (!name || !phone || !category) {
+  if (!firstname || !phone || !category) {
     return res.status(400).json({ error: "Missing required fields" });
   }
+
+  const fullName = `${surname || ""} ${firstname}`.trim();
 
   // ====== Email Setup ======
   const transporter = nodemailer.createTransport({
@@ -29,10 +50,23 @@ router.post("/send", async (req, res) => {
     subject: "New Empanelment Submission",
     html: `
       <h3>New Empanelment Submission</h3>
-      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Name:</strong> ${fullName}</p>
       <p><strong>Email:</strong> ${email || "Not Provided"}</p>
       <p><strong>Phone:</strong> ${phone}</p>
-      <p><strong>Category:</strong> ${category}</p>
+      <p><strong>Gender:</strong> ${gender || "Not Provided"}</p>
+      <p><strong>Date of Birth:</strong> ${dob || "Not Provided"}</p>
+      <p><strong>Highest Qualification:</strong> ${qualification || "Not Provided"}</p>
+      <p><strong>Specialization:</strong> ${specialization || "Not Provided"}</p>
+      <p><strong>Certifications:</strong> ${certification || "Not Provided"}</p>
+      <p><strong>Work Mode:</strong> ${workmode || "Not Provided"}</p>
+      <p><strong>Designation:</strong> ${designation || "Not Provided"}</p>
+      <p><strong>Employer:</strong> ${employer || "Not Provided"}</p>
+      <p><strong>Experience (Years):</strong> ${experience || "0"}</p>
+      <p><strong>Areas with No Experience:</strong> ${noExpAreas || "None"}</p>
+      <p><strong>Work Location:</strong> ${workLocation || "Not Provided"}</p>
+      <p><strong>Residence:</strong> ${residence || "Not Provided"}</p>
+      <p><strong>Current CTC:</strong> ${ctc || "Not Provided"}</p>
+      <p><strong>Category Applied:</strong> ${category}</p>
     `,
   };
 
@@ -50,16 +84,50 @@ router.post("/send", async (req, res) => {
     } else {
       workbook = XLSX.utils.book_new();
       worksheet = XLSX.utils.aoa_to_sheet([
-        ["Name", "Email", "Phone", "Category", "Date"],
+        [
+          "Surname",
+          "First Name",
+          "Phone",
+          "Email",
+          "Gender",
+          "DOB",
+          "Qualification",
+          "Specialization",
+          "Certification",
+          "Work Mode",
+          "Designation",
+          "Employer",
+          "Experience (Years)",
+          "No Experience Areas",
+          "Work Location",
+          "Residence",
+          "CTC",
+          "Category",
+          "Submission Date",
+        ],
       ]);
       XLSX.utils.book_append_sheet(workbook, worksheet, "Empanelments");
     }
 
     const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
     data.push([
-      name,
-      email || "Not Provided",
+      surname || "",
+      firstname,
       phone,
+      email || "",
+      gender || "",
+      dob || "",
+      qualification || "",
+      specialization || "",
+      certification || "",
+      workmode || "",
+      designation || "",
+      employer || "",
+      experience || "",
+      noExpAreas || "",
+      workLocation || "",
+      residence || "",
+      ctc || "",
       category,
       new Date().toLocaleString(),
     ]);
