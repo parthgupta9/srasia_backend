@@ -8,6 +8,7 @@ const conferenceRoutes = require('./routes/conference');
 const reportRoutes = require("./routes/reports");
 const eventRoutes = require('./routes/events');
 const volunteerRoutes = require('./routes/volunteer');
+const newsletterRoutes = require("./routes/newsletter");
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use("/api/volunteer", volunteerRoutes);
 app.use("/api/empanelment", require("./routes/empanelment"));
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/api/newsletter", newsletterRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
