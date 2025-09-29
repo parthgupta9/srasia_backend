@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const Subscriber = require("../models/subscribe");
-const nodemailer = require("nodemailer");
+const sgMail = require("@sendgrid/mail");
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY); // your SendGrid API key
 
 // Subscribe a user
 router.post("/subscribe", async (req, res) => {
@@ -37,20 +39,13 @@ router.post("/send", async (req, res) => {
       return res.status(404).json({ message: "No subscribers found" });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS, // Gmail app password
-      },
-    });
-
     const recipientEmails = subscribers.map((s) => s.email);
 
-    await transporter.sendMail({
-      from: `"SR Asia Newsletter" <${process.env.MAIL_USER}>`,
-      to: process.env.MAIL_USER, // sender in To
-      bcc: recipientEmails,       // all subscribers hidden in BCC
+    const msg = {
+      from: process.env.SENDGRID_SENDER_EMAIL, // verified sender email
+      replyTo: "support@sr-asia.com",         // optional reply-to
+      to: process.env.SENDGRID_SENDER_EMAIL,  // required "to" field
+      bcc: recipientEmails,                   // all subscribers hidden
       subject,
       html: `
         <div style="font-family: Arial, sans-serif; line-height:1.5;">
@@ -64,7 +59,9 @@ router.post("/send", async (req, res) => {
           </p>
         </div>
       `,
-    });
+    };
+
+    await sgMail.send(msg);
 
     res.json({ message: `Newsletter sent to ${subscribers.length} subscribers` });
   } catch (err) {

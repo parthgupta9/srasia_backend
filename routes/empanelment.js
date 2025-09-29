@@ -1,10 +1,12 @@
 const express = require("express");
-const nodemailer = require("nodemailer");
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const sgMail = require("@sendgrid/mail");
 
 const router = express.Router();
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY); // your SendGrid API key
 
 // 📌 Empanelment submission
 router.post("/send", async (req, res) => {
@@ -35,18 +37,10 @@ router.post("/send", async (req, res) => {
 
   const fullName = `${surname || ""} ${firstname}`.trim();
 
-  // ====== Email Setup ======
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS, // App Password
-    },
-  });
-
-  const mailOptions = {
-    from: process.env.MAIL_USER,
+  const msg = {
+    from: process.env.SENDGRID_SENDER_EMAIL, // verified sender
     to: "career.srasia@gmail.com",
+    replyTo: "support@sr-asia.com",           // optional
     subject: "New Empanelment Submission",
     html: `
       <h3>New Empanelment Submission</h3>
@@ -71,8 +65,8 @@ router.post("/send", async (req, res) => {
   };
 
   try {
-    // Send Email
-    await transporter.sendMail(mailOptions);
+    // Send Email via SendGrid
+    await sgMail.send(msg);
 
     // Save to Excel
     const filePath = path.join(__dirname, "../empanelments.xlsx");
@@ -139,7 +133,7 @@ router.post("/send", async (req, res) => {
     res.status(200).json({ message: "Empanelment saved & email sent!" });
   } catch (error) {
     console.error("Empanelment send/save error:", error);
-    res.status(500).json({ error: "Failed to send/save empanelment" });
+    res.status(500).json({ error: "Failed to send/save empanelment", details: error.message });
   }
 });
 

@@ -1,10 +1,12 @@
 const express = require("express");
-const nodemailer = require("nodemailer");
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const sgMail = require("@sendgrid/mail");
 
 const router = express.Router();
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY); // your SendGrid API key
 
 // 📌 Submit Volunteer
 router.post("/send", async (req, res) => {
@@ -14,17 +16,10 @@ router.post("/send", async (req, res) => {
     return res.status(400).json({ error: "Missing name or phone" });
   }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS, // App Password from Google
-    },
-  });
-
-  const mailOptions = {
-    from: process.env.MAIL_USER,
+  const msg = {
+    from: process.env.SENDGRID_SENDER_EMAIL, // verified sender
     to: "career.srasia@gmail.com",
+    replyTo: "support@sr-asia.com",          // optional
     subject: "New Volunteer Contact",
     html: `
       <h3>New Volunteer Contact</h3>
@@ -34,8 +29,8 @@ router.post("/send", async (req, res) => {
   };
 
   try {
-    // Send Email
-    await transporter.sendMail(mailOptions);
+    // Send Email via SendGrid
+    await sgMail.send(msg);
 
     // Save to Excel
     const filePath = path.join(__dirname, "../volunteers.xlsx");
@@ -46,9 +41,7 @@ router.post("/send", async (req, res) => {
       worksheet = workbook.Sheets["Volunteers"];
     } else {
       workbook = XLSX.utils.book_new();
-      worksheet = XLSX.utils.aoa_to_sheet([
-        ["Name", "Phone", "Date"],
-      ]);
+      worksheet = XLSX.utils.aoa_to_sheet([["Name", "Phone", "Date"]]);
       XLSX.utils.book_append_sheet(workbook, worksheet, "Volunteers");
     }
 
@@ -62,7 +55,7 @@ router.post("/send", async (req, res) => {
     res.status(200).json({ message: "Volunteer saved & email sent!" });
   } catch (error) {
     console.error("Volunteer send/save error:", error);
-    res.status(500).json({ error: "Failed to send/save volunteer details" });
+    res.status(500).json({ error: "Failed to send/save volunteer details", details: error.message });
   }
 });
 

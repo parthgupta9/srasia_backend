@@ -1,7 +1,12 @@
-const nodemailer = require("nodemailer");
+
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+
+const sgMail = require("@sendgrid/mail");
+
+// Set SendGrid API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // ===== GET JOBS =====
 exports.getJobs = async (req, res) => {
@@ -52,7 +57,7 @@ exports.applyToJob = async (req, res) => {
     highestQualification,
     experience,
     expectedCtc,
-    jobTitle, // Directly passed from frontend
+    jobTitle,
   } = req.body;
 
   const resume = req.file;
@@ -61,37 +66,33 @@ exports.applyToJob = async (req, res) => {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
-
   try {
-    // ===== Send Email =====
-    await transporter.sendMail({
-      from: `"SR Asia Careers" <${process.env.MAIL_USER}>`,
-      to: "career.srasia@gmail.com",
+    // ===== Send Email with SendGrid =====
+    const msg = {
+      to: "career.srasia@gmail.com", // HR email
+      from: process.env.SENDGRID_SENDER_EMAIL, // Must be verified in SendGrid
       subject: `New Application for "${jobTitle}"`,
       text: `
-        Name: ${name}
-        Email: ${email}
-        Phone: ${phone}
-        Previous Organization: ${previousOrganization}
-        Institution Name: ${institutionName}
-        Highest Qualification: ${highestQualification}
-        Experience: ${experience}
-        Expected CTC: ${expectedCtc}
+Name: ${name}
+Email: ${email}
+Phone: ${phone}
+Previous Organization: ${previousOrganization}
+Institution Name: ${institutionName}
+Highest Qualification: ${highestQualification}
+Experience: ${experience}
+Expected CTC: ${expectedCtc}
       `,
       attachments: [
         {
+          content: resume.buffer.toString("base64"), // SendGrid requires base64
           filename: resume.originalname,
-          content: resume.buffer,
+          type: resume.mimetype,
+          disposition: "attachment",
         },
       ],
-    });
+    };
+
+    await sgMail.send(msg);
 
     // ===== Save to Excel =====
     const filePath = path.join(__dirname, "../job_applications.xlsx");
