@@ -3,16 +3,32 @@ const router = express.Router();
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const Contact = require("../models/Contact");
+
 
 const filePath = path.join(__dirname, "../contacts.xlsx");
 
-// 📌 Contact form submission
 router.post("/contact", async (req, res) => {
   try {
     const { name, email, phone, organization, subject, message } = req.body;
 
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: "Required fields missing" });
+    }
+
     console.log("Contact form submitted:", req.body);
 
+    // ===== 1️⃣ SAVE TO MONGODB =====
+    await Contact.create({
+      name,
+      email,
+      phone,
+      organization,
+      subject,
+      message,
+    });
+
+    // ===== 2️⃣ SAVE TO EXCEL =====
     let workbook, worksheet;
 
     if (fs.existsSync(filePath)) {
@@ -37,16 +53,19 @@ router.post("/contact", async (req, res) => {
       new Date().toLocaleString(),
     ]);
 
-    worksheet = XLSX.utils.aoa_to_sheet(data);
-    workbook.Sheets["Contacts"] = worksheet;
+    workbook.Sheets["Contacts"] = XLSX.utils.aoa_to_sheet(data);
     XLSX.writeFile(workbook, filePath);
 
-    res.status(200).json({ message: "Message received and saved to Excel!" });
+    res.status(200).json({
+      success: true,
+      message: "Message saved to MongoDB and Excel!",
+    });
   } catch (err) {
     console.error("Error saving contact:", err);
     res.status(500).json({ error: "Failed to submit message." });
   }
 });
+
 
 // 📌 Download contacts Excel
 router.get("/contact/download", (req, res) => {
