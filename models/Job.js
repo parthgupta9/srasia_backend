@@ -1,10 +1,25 @@
 const mongoose = require("mongoose");
 
-const JobSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  type: { type: String, required: true }, // 'job' or 'internship'
-  createdAt: { type: Date, default: Date.now },
-});
+const jobApplicationSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    phone: String,
+    previousOrganization: String,
+    institutionName: String,
+    highestQualification: String,
+    experience: String,
+    expectedCtc: String,
+    jobTitle: { type: String, required: true },
 
-module.exports = mongoose.model("Job", JobSchema);
+    resume: {
+      filename: String,
+      mimetype: String,
+      size: Number,
+      data: Buffer, // store resume file
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("JobApplication", jobApplicationSchema);
