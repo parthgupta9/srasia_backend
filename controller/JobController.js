@@ -2,7 +2,6 @@
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
-const JobApplication = require("../models/Job");
 
 const sgMail = require("@sendgrid/mail");
 
@@ -68,29 +67,10 @@ exports.applyToJob = async (req, res) => {
   }
 
   try {
-    // ===== 1️⃣ SAVE TO MONGODB =====
-    await JobApplication.create({
-      name,
-      email,
-      phone,
-      previousOrganization,
-      institutionName,
-      highestQualification,
-      experience,
-      expectedCtc,
-      jobTitle,
-      resume: {
-        filename: resume.originalname,
-        mimetype: resume.mimetype,
-        size: resume.size,
-        data: resume.buffer,
-      },
-    });
-
-    // ===== 2️⃣ SEND EMAIL =====
+    // ===== Send Email with SendGrid =====
     const msg = {
-      to: "career.srasia@gmail.com",
-      from: process.env.SENDGRID_SENDER_EMAIL,
+      to: "career.srasia@gmail.com", // HR email
+      from: process.env.SENDGRID_SENDER_EMAIL, // Must be verified in SendGrid
       subject: `New Application for "${jobTitle}"`,
       text: `
 Name: ${name}
@@ -104,7 +84,7 @@ Expected CTC: ${expectedCtc}
       `,
       attachments: [
         {
-          content: resume.buffer.toString("base64"),
+          content: resume.buffer.toString("base64"), // SendGrid requires base64
           filename: resume.originalname,
           type: resume.mimetype,
           disposition: "attachment",
@@ -114,7 +94,7 @@ Expected CTC: ${expectedCtc}
 
     await sgMail.send(msg);
 
-    // ===== 3️⃣ SAVE TO EXCEL =====
+    // ===== Save to Excel =====
     const filePath = path.join(__dirname, "../job_applications.xlsx");
     let workbook, worksheet;
 
@@ -154,16 +134,16 @@ Expected CTC: ${expectedCtc}
       new Date().toLocaleString(),
     ]);
 
-    workbook.Sheets["Applications"] = XLSX.utils.aoa_to_sheet(data);
+    worksheet = XLSX.utils.aoa_to_sheet(data);
+    workbook.Sheets["Applications"] = worksheet;
     XLSX.writeFile(workbook, filePath);
 
-    res.json({ success: true, message: "Application submitted successfully" });
+    res.json({ success: true });
   } catch (error) {
-    console.error("Application failed:", error);
-    res.status(500).json({ error: "Failed to process application" });
+    console.error("Application save/send failed:", error);
+    res.status(500).json({ error: "Failed to send or save application" });
   }
 };
-
 
 // ===== DOWNLOAD EXCEL FILE =====
 exports.downloadApplications = (req, res) => {
