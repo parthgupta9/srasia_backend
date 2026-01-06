@@ -5,9 +5,9 @@ const { join } = require("path");
 const sgMail = require("@sendgrid/mail");
 const nodemailer = require("nodemailer");
 
-// ======================
-// 📧 EMAIL SETUP (SendGrid with SMTP fallback)
-// ======================
+/* ======================
+   📧 EMAIL SETUP
+   ====================== */
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY?.trim();
 const hasSendGridKey = Boolean(SENDGRID_API_KEY);
 const hasSmtpCreds = Boolean(process.env.MAIL_USER && process.env.MAIL_PASS);
@@ -26,6 +26,9 @@ const smtpTransport = hasSmtpCreds
     })
   : null;
 
+/* ======================
+   🧾 EMAIL CONTENT
+   ====================== */
 const buildApplicationText = (data) => `
 Name: ${data.name || "N/A"}
 Email: ${data.email || "N/A"}
@@ -37,28 +40,31 @@ Experience: ${data.experience || "N/A"}
 Expected CTC: ${data.expectedCtc || "N/A"}
 `;
 
+/* ======================
+   📤 SEND EMAIL (SG → SMTP)
+   ====================== */
 const sendApplicationEmail = async ({ resume, ...fields }) => {
   const subject = `New Application for "${fields.jobTitle}"`;
   const text = buildApplicationText(fields);
 
+  // ---- Try SendGrid first ----
   if (hasSendGridKey) {
-    const msg = {
-      to: "career.srasia@gmail.com",
-      from: process.env.SENDGRID_SENDER_EMAIL,
-      subject,
-      text,
-      attachments: [
-        {
-          content: resume.buffer.toString("base64"),
-          filename: resume.originalname,
-          type: resume.mimetype,
-          disposition: "attachment",
-        },
-      ],
-    };
-
     try {
-      await sgMail.send(msg);
+      await sgMail.send({
+        to: "career.srasia@gmail.com",
+        from: process.env.SENDGRID_SENDER_EMAIL,
+        subject,
+        text,
+        attachments: [
+          {
+            content: resume.buffer.toString("base64"),
+            filename: resume.originalname,
+            type: resume.mimetype,
+            disposition: "attachment",
+          },
+        ],
+      });
+      console.log("✅ Email sent via SendGrid");
       return "sendgrid";
     } catch (err) {
       const unauthorized = err.code === 401 || err.response?.statusCode === 401;
@@ -67,10 +73,11 @@ const sendApplicationEmail = async ({ resume, ...fields }) => {
         err.response?.body || err.message
       );
       if (!unauthorized) throw err;
-      console.warn("⚠️ SendGrid unauthorized, falling back to SMTP.");
+      console.warn("⚠️ SendGrid unauthorized, falling back to SMTP");
     }
   }
 
+  // ---- SMTP fallback ----
   if (smtpTransport) {
     await smtpTransport.sendMail({
       to: "career.srasia@gmail.com",
@@ -85,15 +92,16 @@ const sendApplicationEmail = async ({ resume, ...fields }) => {
         },
       ],
     });
+    console.log("✅ Email sent via SMTP");
     return "smtp";
   }
 
-  throw new Error("No email transport is configured");
+  throw new Error("No email transport configured");
 };
 
-// ======================
-// 📄 GET ALL JOBS
-// ======================
+/* ======================
+   📄 GET JOBS
+   ====================== */
 exports.getJobs = async (req, res) => {
   try {
     const { type } = req.query;
@@ -109,9 +117,9 @@ exports.getJobs = async (req, res) => {
   }
 };
 
-// ======================
-// ➕ ADD NEW JOB
-// ======================
+/* ======================
+   ➕ ADD JOB
+   ====================== */
 exports.addJob = async (req, res) => {
   try {
     const { title, description, type } = req.body;
@@ -120,12 +128,7 @@ exports.addJob = async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    const job = await Job.create({
-      title,
-      description,
-      type,
-    });
-
+    const job = await Job.create({ title, description, type });
     res.status(201).json(job);
   } catch (err) {
     console.error("❌ addJob error:", err);
@@ -133,18 +136,15 @@ exports.addJob = async (req, res) => {
   }
 };
 
-// ======================
-// ❌ DELETE JOB
-// ======================
+/* ======================
+   ❌ DELETE JOB
+   ====================== */
 exports.deleteJob = async (req, res) => {
   try {
     const { id } = req.params;
 
     const job = await Job.findByIdAndDelete(id);
-
-    if (!job) {
-      return res.status(404).json({ error: "Job not found" });
-    }
+    if (!job) return res.status(404).json({ error: "Job not found" });
 
     res.status(200).json({ success: true });
   } catch (err) {
@@ -153,9 +153,9 @@ exports.deleteJob = async (req, res) => {
   }
 };
 
-// ======================
-// 📝 APPLY TO JOB
-// ======================
+/* ======================
+   📝 APPLY TO JOB
+   ====================== */
 exports.applyToJob = async (req, res) => {
   try {
     const {
@@ -176,10 +176,8 @@ exports.applyToJob = async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // ======================
-    // 📧 SEND EMAIL (SendGrid first, SMTP fallback on 401)
-    // ======================
-    const emailTransportUsed = await sendApplicationEmail({
+    // ---- Send Email ----
+    const transport = await sendApplicationEmail({
       resume,
       name,
       email,
@@ -192,71 +190,71 @@ exports.applyToJob = async (req, res) => {
       jobTitle,
     });
 
-    // ======================
-    // 📊 SAVE TO EXCEL
-    // ======================
-    const filePath = join(__dirname, "../job_applications.xlsx");
-    let workbook;
-    let worksheet;
+    // ---- Save to Excel (NON-CRITICAL) ----
+    try {
+      const filePath = join(__dirname, "../job_applications.xlsx");
+      let workbook;
+      let worksheet;
 
-    if (existsSync(filePath)) {
-      workbook = readFile(filePath);
-      worksheet = workbook.Sheets["Applications"];
-    } else {
-      workbook = utils.book_new();
-      worksheet = utils.aoa_to_sheet([
-        [
-          "Name",
-          "Email",
-          "Phone",
-          "Previous Organization",
-          "Institution Name",
-          "Highest Qualification",
-          "Experience",
-          "Expected CTC",
-          "Job Title",
-          "Date",
-        ],
+      if (existsSync(filePath)) {
+        workbook = readFile(filePath);
+        worksheet = workbook.Sheets["Applications"];
+      } else {
+        workbook = utils.book_new();
+        worksheet = utils.aoa_to_sheet([
+          [
+            "Name",
+            "Email",
+            "Phone",
+            "Previous Organization",
+            "Institution Name",
+            "Highest Qualification",
+            "Experience",
+            "Expected CTC",
+            "Job Title",
+            "Date",
+          ],
+        ]);
+        utils.book_append_sheet(workbook, worksheet, "Applications");
+      }
+
+      const data = utils.sheet_to_json(worksheet, { header: 1 });
+
+      data.push([
+        name,
+        email,
+        phone,
+        previousOrganization,
+        institutionName,
+        highestQualification,
+        experience,
+        expectedCtc,
+        jobTitle,
+        new Date().toLocaleString(),
       ]);
-      utils.book_append_sheet(workbook, worksheet, "Applications");
+
+      workbook.Sheets["Applications"] = utils.aoa_to_sheet(data);
+      writeFile(workbook, filePath);
+    } catch (fileErr) {
+      console.warn("⚠️ Excel save failed:", fileErr.message);
     }
 
-    const data = utils.sheet_to_json(worksheet, { header: 1 });
-
-    data.push([
-      name,
-      email,
-      phone,
-      previousOrganization,
-      institutionName,
-      highestQualification,
-      experience,
-      expectedCtc,
-      jobTitle,
-      new Date().toLocaleString(),
-    ]);
-
-    workbook.Sheets["Applications"] = utils.aoa_to_sheet(data);
-    writeFile(workbook, filePath);
-
-    res.status(200).json({ success: true, transport: emailTransportUsed });
+    res.status(200).json({ success: true, transport });
   } catch (err) {
     console.error("❌ applyToJob error:", err);
     res.status(500).json({ error: "Failed to send or save application" });
   }
 };
 
-// ======================
-// ⬇️ DOWNLOAD APPLICATIONS
-// ======================
+/* ======================
+   ⬇️ DOWNLOAD APPLICATIONS
+   ====================== */
 exports.downloadApplications = (req, res) => {
   try {
     const filePath = join(__dirname, "../job_applications.xlsx");
-
     if (!existsSync(filePath)) {
       return res.status(404).send("No applications file found.");
     }
-
     res.download(filePath, "job_applications.xlsx");
   } catch (err) {
     console.error("❌ downloadApplications error:", err);
@@ -264,4 +262,4 @@ exports.downloadApplications = (req, res) => {
   }
 };
 
-console.log("✅ Job model inside controller:", typeof Job);
+console.log("✅ Job model loaded:", typeof Job);
