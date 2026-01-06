@@ -1,14 +1,23 @@
-const express = require("express")
-const multer = require("multer")
-const { getJobs, addJob, deleteJob, applyToJob,downloadApplications} = require("../controller/JobController")
+const express = require("express");
+const {
+  getJobs,
+  addJob,
+  deleteJob,
+  applyToJob,
+  downloadApplications,
+} = require("../controller/JobController");
 
-const router = express.Router()
-const upload = multer({ storage: multer.memoryStorage() })
+const upload = require("../middlewares/upload");
 
-router.get("/jobs", getJobs)
-router.post("/jobs", addJob)
-router.delete("/jobs/:id", deleteJob)
-router.post("/apply", upload.single("resume"), applyToJob)
-router.get("/applications/download", downloadApplications)
+const router = express.Router();
 
-module.exports = router
+router.get("/jobs", getJobs);
+router.post("/jobs", addJob);
+router.delete("/jobs/:id", deleteJob);
+
+// IMPORTANT: "resume" must match frontend input name
+router.post("/apply", upload.single("resume"), applyToJob);
+
+router.get("/applications/download", downloadApplications);
+
+module.exports = router;
