@@ -3,7 +3,7 @@ const multer = require("multer")
 const { getJobs, addJob, deleteJob, applyToJob,downloadApplications} = require("../controller/JobController")
 
 const router = express.Router()
-const upload = multer({ storage: multer.memoryStorage() })
+const upload = require("../middleware/upload");
 
 router.get("/jobs", getJobs)
 router.post("/jobs", addJob)

@@ -9,25 +9,37 @@ const reportRoutes = require("./routes/reports");
 const eventRoutes = require('./routes/events');
 const volunteerRoutes = require('./routes/volunteer');
 const newsletterRoutes = require("./routes/newsletter");
+const proposalRoutes = require("./routes/ProposalRoutes");
+const feedbackRoutes = require("./routes/feedback");
+const complaintRoutes = require("./routes/Coplaint");
+
 
 const app = express();
 
 const allowedOrigins = [
-  "http://localhost:3000",        // For local development
-  "https://sr-asia.org",          // ✅ Your Vercel production domain
+  "http://localhost:3000",
+  "https://sr-asia.org",
+  "https://www.sr-asia.org",
+  /\.vercel\.app$/, // allow preview deployments
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true);
+
+    if (
+      allowedOrigins.some(o =>
+        typeof o === "string" ? o === origin : o.test(origin)
+      )
+    ) {
       return callback(null, true);
-    } else {
-      return callback(new Error("Not allowed by CORS"));
     }
+
+    callback(new Error("Not allowed by CORS"));
   },
   methods: ["GET", "POST"],
-  credentials: true,
 }));
+
 
 app.use(express.json());
 
@@ -44,6 +56,10 @@ app.use("/api/empanelment", require("./routes/empanelment"));
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use("/api/newsletter", newsletterRoutes);
+
+app.use("/api/proposals", proposalRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/complaints", complaintRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {

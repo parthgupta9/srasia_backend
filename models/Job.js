@@ -6,10 +6,10 @@ const jobApplicationSchema = new mongoose.Schema(
     email: { type: String, required: true },
     phone: String,
     previousOrganization: String,
-    institutionName: String,
+
     highestQualification: String,
-    experience: String,
-    expectedCtc: String,
+    experience: Number,
+    expectedCtc: Number,
     jobTitle: { type: String, required: true },
 
     resume: {
