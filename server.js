@@ -102,6 +102,7 @@ app.use("/api/volunteer", volunteerRoutes);
 app.use("/api/empanelment", empanelmentRoutes);
 app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/inquiries", inquiryRoutes);
+app.use("/api/contact", require("./routes/contact"));
 
 /* ======================
    📁 STATIC FILES

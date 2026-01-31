@@ -6,20 +6,43 @@ const path = require("path");
 
 const filePath = path.join(__dirname, "../contacts.xlsx");
 
-// 📌 Contact form submission
+/* ==========================
+   📌 CONTACT FORM SUBMIT
+   ========================== */
 router.post("/", async (req, res) => {
   try {
-    const { name, email, phone, organization, subject, message } = req.body;
+    console.log("📩 RAW BODY:", req.body);
 
-    console.log("Contact form submitted:", req.body);
+    const {
+      name = "",
+      email = "",
+      phone = "",
+      organization = "",
+      subject = "",
+      message = "",
+    } = req.body;
 
-    let workbook, worksheet;
+    // Required validation (AMP-safe)
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
 
+    let workbook;
+    let worksheet;
+
+    // Load or create workbook
     if (fs.existsSync(filePath)) {
       workbook = XLSX.readFile(filePath);
       worksheet = workbook.Sheets["Contacts"];
     } else {
       workbook = XLSX.utils.book_new();
+    }
+
+    // Create sheet if missing
+    if (!worksheet) {
       worksheet = XLSX.utils.aoa_to_sheet([
         [
           "Name",
@@ -34,7 +57,9 @@ router.post("/", async (req, res) => {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
     }
 
+    // Convert to array and append
     const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
     data.push([
       name,
       email,
@@ -45,23 +70,46 @@ router.post("/", async (req, res) => {
       new Date().toLocaleString(),
     ]);
 
-    worksheet = XLSX.utils.aoa_to_sheet(data);
-    workbook.Sheets["Contacts"] = worksheet;
+    const newSheet = XLSX.utils.aoa_to_sheet(data);
+    workbook.Sheets["Contacts"] = newSheet;
+
+    // Write file safely
     XLSX.writeFile(workbook, filePath);
 
-    res.status(200).json({ message: "Message received and saved to Excel!" });
+    // ✅ AMP requires JSON response
+    return res.status(200).json({
+      success: true,
+      message: "Message received and saved",
+    });
   } catch (err) {
-    console.error("Error saving contact:", err);
-    res.status(500).json({ error: "Failed to submit message." });
+    console.error("🔥 CONTACT ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit message",
+      error: err.message,
+    });
   }
 });
 
-// 📌 Download contacts Excel
-router.get("/contact/download", (req, res) => {
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, "contacts.xlsx");
-  } else {
-    res.status(404).json({ error: "No contacts file found" });
+/* ==========================
+   📌 DOWNLOAD EXCEL FILE
+   ========================== */
+router.get("/download", (req, res) => {
+  try {
+    if (fs.existsSync(filePath)) {
+      return res.download(filePath, "contacts.xlsx");
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: "No contacts file found",
+      });
+    }
+  } catch (err) {
+    console.error("🔥 DOWNLOAD ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Download failed",
+    });
   }
 });
 
