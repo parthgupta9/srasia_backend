@@ -21,7 +21,15 @@ router.post("/", async (req, res) => {
     } else {
       workbook = XLSX.utils.book_new();
       worksheet = XLSX.utils.aoa_to_sheet([
-        ["Name", "Email", "Phone", "Organization", "Subject", "Message", "Date"],
+        [
+          "Name",
+          "Email",
+          "Phone",
+          "Organization",
+          "Subject",
+          "Message",
+          "Date",
+        ],
       ]);
       XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
     }
