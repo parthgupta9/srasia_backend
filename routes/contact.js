@@ -7,7 +7,7 @@ const path = require("path");
 const filePath = path.join(__dirname, "../contacts.xlsx");
 
 // 📌 Contact form submission
-router.post("/contact", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { name, email, phone, organization, subject, message } = req.body;
 
