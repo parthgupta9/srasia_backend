@@ -12,6 +12,10 @@ const newsletterRoutes = require("./routes/newsletter");
 const proposalRoutes = require("./routes/ProposalRoutes");
 const feedbackRoutes = require("./routes/feedback");
 const complaintRoutes = require("./routes/Coplaint");
+const adminAuthRoutes = require("./routes/adminAuth");
+const adminCrudRoutes = require("./routes/adminCrud");
+const AdminUser = require("./models/AdminUser");
+const { setServers } = require("node:dns");
 
 
 const app = express();
@@ -22,6 +26,41 @@ const allowedOrigins = [
   "https://www.sr-asia.org",
   /\.vercel\.app$/, // allow preview deployments
 ];
+
+async function ensureDefaultAdmin() {
+  const email = "admin@admin.com";
+  const password = "12345678";
+
+  let admin = await AdminUser.findOne({ email });
+
+  if (!admin) {
+    admin = new AdminUser({
+      name: "Admin",
+      email,
+      password,
+      role: "admin",
+      isActive: true,
+    });
+
+    await admin.save();
+    console.log("Default admin user created: admin@admin.com");
+  } else {
+    // Keep default credentials in sync so login always works for this admin account.
+    admin.name = "Admin";
+    admin.password = password;
+    admin.role = "admin";
+    admin.isActive = true;
+    await admin.save();
+    console.log("Default admin user updated: admin@admin.com");
+  }
+
+  const savedAdmin = await AdminUser.findOne({ email }).select("_id email role isActive updatedAt");
+  console.log("Default admin verification:", savedAdmin);
+}
+
+
+setServers(["1.1.1.1", "8.8.8.8"]);
+
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -37,7 +76,7 @@ app.use(cors({
 
     callback(new Error("Not allowed by CORS"));
   },
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 }));
 
 
@@ -60,6 +99,8 @@ app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/proposals", proposalRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/complaints", complaintRoutes);
+app.use("/api/admin", adminAuthRoutes);
+app.use("/api/admin", adminCrudRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
@@ -68,8 +109,17 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .then(() => {
   console.log('MongoDB connected');
-  app.listen(process.env.PORT, () => {
-    console.log(`Server running on port ${process.env.PORT}`);
-  });
+  ensureDefaultAdmin()
+    .then(() => {
+      app.listen(process.env.PORT, () => {
+        console.log(`Server running on port ${process.env.PORT}`);
+      });
+    })
+    .catch((seedErr) => {
+      console.error("Failed to ensure default admin user:", seedErr);
+      app.listen(process.env.PORT, () => {
+        console.log(`Server running on port ${process.env.PORT}`);
+      });
+    });
 })
 .catch(err => console.error('Mongo connection error:', err));
