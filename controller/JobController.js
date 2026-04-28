@@ -3,6 +3,7 @@ const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
 const JobApplication = require("../models/Job");
+const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinary");
 
 const sgMail = require("@sendgrid/mail");
 
@@ -68,8 +69,42 @@ exports.applyToJob = async (req, res) => {
   }
 
   try {
-    // ===== 1️⃣ SAVE TO MONGODB =====
-    await JobApplication.create({
+    console.log("🔄 Processing job application:", { name, email, jobTitle });
+    console.log("📄 Resume info:", { 
+      filename: resume.originalname, 
+      size: resume.size,
+      mimetype: resume.mimetype 
+    });
+
+    // ===== 1️⃣ UPLOAD RESUME TO CLOUDINARY =====
+    let resumeData = {};
+    try {
+      console.log("⏳ Starting Cloudinary upload...");
+      const cloudinaryResult = await uploadToCloudinary(
+        resume.buffer,
+        resume.originalname,
+        "resumes"
+      );
+      
+      resumeData = {
+        filename: resume.originalname,
+        url: cloudinaryResult.secure_url,
+        publicId: cloudinaryResult.public_id,
+        size: resume.size,
+      };
+      
+      console.log("✅ Resume uploaded successfully:", resumeData.url);
+    } catch (cloudinaryError) {
+      console.error("❌ Cloudinary upload failed:", cloudinaryError);
+      return res.status(500).json({ 
+        error: "Failed to upload resume. Please try again.",
+        details: cloudinaryError.message 
+      });
+    }
+
+    // ===== 2️⃣ SAVE TO MONGODB =====
+    console.log("💾 Saving to MongoDB...");
+    const jobApp = await JobApplication.create({
       name,
       email,
       phone,
@@ -79,46 +114,38 @@ exports.applyToJob = async (req, res) => {
       experience,
       expectedCtc,
       jobTitle,
-      resume: {
-        filename: resume.originalname,
-        mimetype: resume.mimetype,
-        size: resume.size,
-        data: resume.buffer,
-      },
+      resume: resumeData,
     });
+    console.log("✅ Saved to MongoDB with ID:", jobApp._id);
 
-    // ===== 2️⃣ SEND EMAIL =====
+    // ===== 3️⃣ SEND EMAIL =====
     const msg = {
       to: "career.srasia@gmail.com",
       from: process.env.SENDGRID_SENDER_EMAIL,
       subject: `New Application for "${jobTitle}"`,
-      text: `
-Name: ${name}
-Email: ${email}
-Phone: ${phone}
-Previous Organization: ${previousOrganization}
-Institution Name: ${institutionName}
-Highest Qualification: ${highestQualification}
-Experience: ${experience}
-Expected CTC: ${expectedCtc}
+      html: `
+        <h3>New Job Application</h3>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Phone:</strong> ${phone}</p>
+        <p><strong>Previous Organization:</strong> ${previousOrganization}</p>
+        <p><strong>Institution Name:</strong> ${institutionName}</p>
+        <p><strong>Highest Qualification:</strong> ${highestQualification}</p>
+        <p><strong>Experience:</strong> ${experience}</p>
+        <p><strong>Expected CTC:</strong> ${expectedCtc}</p>
+        <p><strong>Resume:</strong> <a href="${resumeData.url}">Download Resume</a></p>
       `,
-      attachments: [
-        {
-          content: resume.buffer.toString("base64"),
-          filename: resume.originalname,
-          type: resume.mimetype,
-          disposition: "attachment",
-        },
-      ],
     };
 
-  try {
-  await sgMail.send(msg);
-} catch (e) {
-  console.error("SendGrid failed:", e.message);
-}
+    try {
+      console.log("📧 Sending email...");
+      await sgMail.send(msg);
+      console.log("✅ Email sent successfully");
+    } catch (e) {
+      console.error("⚠️ SendGrid failed:", e.message);
+    }
 
-    // ===== 3️⃣ SAVE TO EXCEL =====
+    // ===== 4️⃣ SAVE TO EXCEL =====
     const filePath = path.join(__dirname, "../job_applications.xlsx");
     let workbook, worksheet;
 
@@ -138,6 +165,7 @@ Expected CTC: ${expectedCtc}
           "Experience",
           "Expected CTC",
           "Job Title",
+          "Resume URL",
           "Date",
         ],
       ]);
@@ -155,20 +183,31 @@ Expected CTC: ${expectedCtc}
       experience,
       expectedCtc,
       jobTitle,
+      resumeData.url,
       new Date().toLocaleString(),
     ]);
 
     workbook.Sheets["Applications"] = XLSX.utils.aoa_to_sheet(data);
-  try {
-  XLSX.writeFile(workbook, filePath);
-} catch (e) {
-  console.error("Excel write failed:", e.message);
-}
+    try {
+      XLSX.writeFile(workbook, filePath);
+      console.log("✅ Excel file updated");
+    } catch (e) {
+      console.error("⚠️ Excel write failed:", e.message);
+    }
 
-    res.json({ success: true, message: "Application submitted successfully" });
+    console.log("🎉 Application processed successfully");
+    res.json({ 
+      success: true, 
+      message: "Application submitted successfully",
+      applicationId: jobApp._id,
+      resumeUrl: resumeData.url
+    });
   } catch (error) {
-    console.error("Application failed:", error);
-    res.status(500).json({ error: "Failed to process application" });
+    console.error("❌ Application processing failed:", error);
+    res.status(500).json({ 
+      error: "Failed to process application",
+      details: error.message 
+    });
   }
 };
 

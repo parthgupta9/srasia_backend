@@ -12,6 +12,7 @@
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
@@ -19,6 +20,7 @@
     "mongoose": "^8.15.1",
     "multer": "^2.0.1",
     "nodemailer": "^7.0.3",
+    "streamifier": "^0.1.1",
     "xlsx": "^0.18.5",
     "xslx": "^1.0.0"
   }

@@ -14,9 +14,10 @@ const jobApplicationSchema = new mongoose.Schema(
 
     resume: {
       filename: String,
-      mimetype: String,
+      url: String, // Cloudinary URL
+      publicId: String, // Cloudinary public ID for deletion
       size: Number,
-      data: Buffer, // store resume file
+      uploadedAt: { type: Date, default: Date.now },
     },
   },
   { timestamps: true }
