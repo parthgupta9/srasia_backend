@@ -33,13 +33,13 @@ const uploadToCloudinary = (fileBuffer, fileName, folder = "resumes") => {
       console.log(`📁 Uploading file: ${fileName} to folder: ${folder}`);
       console.log(`   File size: ${fileBuffer.length} bytes`);
       
-      const publicId = `${folder}/${Date.now()}-${fileName.replace(/\.[^/.]+$/, "")}`;
+  const publicId = `${Date.now()}-${fileName.replace(/\.[^/.]+$/, "")}`;
       console.log(`   Public ID: ${publicId}`);
       
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: folder,
-          resource_type: "auto",
+          resource_type: "raw",
           public_id: publicId,
           timeout: 60000,
         },
