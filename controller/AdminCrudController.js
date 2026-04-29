@@ -69,7 +69,7 @@ exports.listRecords = async (req, res) => {
     if (!Model) return res.status(404).json({ message: "Unknown resource" });
 
     const page = Math.max(Number(req.query.page || 1), 1);
-    const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 100);
+    const limit = Math.min(Math.max(Number(req.query.limit || 50), 1), 100);
     const skip = (page - 1) * limit;
 
     const filters = { ...req.query };
